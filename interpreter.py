@@ -9,7 +9,7 @@ class Token():
         self.type = type # ie INT, PLUS, EOF
         self.value = value # ie 1, 3, +, None
 
-    def __str__(self):
+    def __str__(self): # ex "Token(INT, 3)
         return 'Token({type}, {value})'.format(
             type=self.type,
             value=repr(self.value)
@@ -61,7 +61,7 @@ class Lexer():
             self.advance()
         return int(result)
 
-    def _id(self): # Handle identifiers and reserved keywords
+    def _id(self): # handle identifiers and reserved keywords
         result = ''
         while self.curr_char is not None and self.curr_char.isalnum():
             result += self.curr_char
@@ -111,11 +111,12 @@ class Lexer():
         return Token(EOF, None)
 
 
+# classes for AST nodes
 class AST():
     pass
 
 
-class BinOp(AST):
+class BinOp(AST): # binary operation node
     def __init__(self, left, op, right):
         self.left = left
         self.token = self.op = op
@@ -128,16 +129,10 @@ class Num(AST):
         self.value = token.value
 
 
-class UnaryOp(AST):
+class UnaryOp(AST): # unary operation node
     def __init__(self, op, expr):
         self.token = self.op = op
         self.expr = expr
-
-
-class Line(AST):
-    def __init__(self, line):
-        self.line = line
-
 
 class NoOp(AST):
     pass
@@ -146,7 +141,7 @@ class NoOp(AST):
 class Parser():
     def __init__(self, lexer):
         self.lexer = lexer
-        self.curr_token = self.lexer.get_next_token()
+        self.curr_token = self.lexer.get_next_token() # first token
 
     def error(self):
         raise Exception('impolite programming - fix your syntax')
@@ -159,19 +154,18 @@ class Parser():
         else:
             self.error()
 
-    def empty(self):
-        """An empty production"""
+    def empty(self): # empty statement
         return NoOp()
 
-    def program(self):
+    def program(self): # check beginning and end of program
         self.eat(HELLO)
         commands = []
-        while self.curr_token.type != GOODBYE and self.curr_token.type != None:
-            commands.append(self.line())
+        while self.curr_token.type != GOODBYE and self.curr_token.type != None: # iterate through commands
+            commands.append(self.command())
         self.eat(GOODBYE)
         return commands
 
-    def line(self):
+    def command(self): # check beginning and end of each command
         self.eat(PLEASE)
         token = self.expr()
         self.eat(THANKYOU)
@@ -224,7 +218,7 @@ class Parser():
         return self.program()
 
 
-class NodeVisitor():
+class NodeVisitor(): 
     def visit(self, node):
         method_name = "visit_" + type(node).__name__
         visitor = getattr(self, method_name, self.generic_visit)
@@ -278,7 +272,7 @@ def main():
             continue
         lexer = Lexer(text)
         parser = Parser(lexer)
-        interpreter =Interpreter(parser)
+        interpreter = Interpreter(parser)
         result = interpreter.interpret()
         for r in result:
             print(r)
