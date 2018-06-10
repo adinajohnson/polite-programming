@@ -3,6 +3,7 @@
     'INT', 'PLUS', 'MINUS', 'MULT', 'DIV', 'LPAREN', 'RPAREN', 'NEWL',
     'ID', 'please', 'thankyou', 'hello', 'goodbye', 'EOF')
 
+
 class Token():
     def __init__(self, type, value):
         self.type = type # ie INT, PLUS, EOF
@@ -17,10 +18,14 @@ class Token():
     def __repr__(self):
         return self.__str__()
 
+
 RESERVED_KEYWORDS = {
     'please': Token('please', 'please'),
     'thankyou': Token('thankyou', 'thankyou'),
+    'hello': Token('hello', 'hello'),
+    'goodbye': Token('goodbye', 'goodbye'),
 }
+
 
 class Lexer():
     def __init__(self, text):
@@ -46,7 +51,7 @@ class Lexer():
             self.curr_char = self.text[self.pos]
 
     def skip_whitespace(self):
-        while self.curr_char is not None and self.curr_char is not "\n" and self.curr_char.isspace():
+        while self.curr_char is not None and self.curr_char.isspace():
             self.advance()
 
     def integer(self):
@@ -67,13 +72,9 @@ class Lexer():
 
     def get_next_token(self):
         while self.curr_char is not None: # make sure not EOF
-            if self.curr_char is not "\n" and self.curr_char.isspace():
+            if self.curr_char.isspace():
                 self.skip_whitespace()
                 continue
-
-            if self.curr_char == "\n":
-                self.advance()
-                return Token(NEWL, "\n")
 
             if self.curr_char.isdigit():
                 return Token(INT, self.integer())
@@ -109,8 +110,10 @@ class Lexer():
 
         return Token(EOF, None)
 
+
 class AST():
     pass
+
 
 class BinOp(AST):
     def __init__(self, left, op, right):
@@ -118,22 +121,27 @@ class BinOp(AST):
         self.token = self.op = op
         self.right = right
 
+
 class Num(AST):
     def __init__(self, token):
         self.token = token
         self.value = token.value
+
 
 class UnaryOp(AST):
     def __init__(self, op, expr):
         self.token = self.op = op
         self.expr = expr
 
+
 class Line(AST):
     def __init__(self, line):
         self.line = line
 
+
 class NoOp(AST):
     pass
+
 
 class Parser():
     def __init__(self, lexer):
@@ -157,17 +165,17 @@ class Parser():
 
     def program(self):
         self.eat(HELLO)
+        commands = []
         while self.curr_token.type != GOODBYE and self.curr_token.type != None:
-            self.line()
+            commands.append(self.line())
         self.eat(GOODBYE)
-
+        return commands
 
     def line(self):
         self.eat(PLEASE)
         token = self.expr()
         self.eat(THANKYOU)
         return token
-
 
     def factor(self):
         token = self.curr_token
@@ -213,7 +221,8 @@ class Parser():
         return node
 
     def parse(self):
-        return self.line()
+        return self.program()
+
 
 class NodeVisitor():
     def visit(self, node):
@@ -223,6 +232,7 @@ class NodeVisitor():
 
     def generic_visit(self, node):
         raise Exception('No visit_{} method'.format(type(node).__name__))
+
 
 class Interpreter(NodeVisitor):
     def __init__(self, parser):
@@ -251,8 +261,12 @@ class Interpreter(NodeVisitor):
         pass
 
     def interpret(self):
-        tree = self.parser.parse()
-        return self.visit(tree)
+        trees = self.parser.parse()
+        parsed = []
+        for tree in trees:
+            parsed.append(self.visit(tree))
+        return parsed
+
 
 def main():
     while True:
@@ -266,7 +280,9 @@ def main():
         parser = Parser(lexer)
         interpreter =Interpreter(parser)
         result = interpreter.interpret()
-        print(result)
+        for r in result:
+            print(r)
+
 
 if __name__ == '__main__':
     main()
