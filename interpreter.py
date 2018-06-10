@@ -1,6 +1,7 @@
-INT, PLUS, MINUS, MULT, DIV, LPAREN, \
-    RPAREN, EOF = 'INT', 'PLUS', 'MINUS', \
-                  'MULT', 'DIV', 'LPAREN', 'RPAREN', 'EOF'
+(INT, PLUS, MINUS, MULT, DIV, LPAREN, RPAREN, NEWL,
+    ID, PLEASE, THANKYOU, HELLO, GOODBYE, EOF) = (
+    'INT', 'PLUS', 'MINUS', 'MULT', 'DIV', 'LPAREN', 'RPAREN', 'NEWL',
+    'ID', 'please', 'thankyou', 'hello', 'goodbye', 'EOF')
 
 class Token():
     def __init__(self, type, value):
@@ -18,7 +19,7 @@ class Token():
 
 RESERVED_KEYWORDS = {
     'please': Token('please', 'please'),
-    'thank you': Token('thank you', 'thank you'),
+    'thankyou': Token('thankyou', 'thankyou'),
 }
 
 class Lexer():
@@ -30,14 +31,14 @@ class Lexer():
     def error(self):
         raise Exception("impolite programming, fix your character")
 
-    def peek(self):
+    def peek(self): # check next char without advancing
         peek_pos = self.pos + 1
         if peek_pos > len(self.text) - 1:
             return None  # EOF
         else:
             return self.text[peek_pos]
 
-    def advance(self):
+    def advance(self): # move to next char
         self.pos += 1
         if self.pos > len(self.text) - 1:
             self.curr_char = None  # EOF
@@ -45,7 +46,7 @@ class Lexer():
             self.curr_char = self.text[self.pos]
 
     def skip_whitespace(self):
-        while self.curr_char is not None and self.curr_char.isspace():
+        while self.curr_char is not None and self.curr_char is not "\n" and self.curr_char.isspace():
             self.advance()
 
     def integer(self):
@@ -55,42 +56,46 @@ class Lexer():
             self.advance()
         return int(result)
 
-
-
-    def _id(self):
-        """Handle identifiers and reserved keywords"""
+    def _id(self): # Handle identifiers and reserved keywords
         result = ''
-        while self.current_char is not None and self.current_char.isalnum():
-            result += self.current_char
+        while self.curr_char is not None and self.curr_char.isalnum():
+            result += self.curr_char
             self.advance()
 
-        token = RESERVED_KEYWORDS.get(result, Token(ID, result))
+        token = RESERVED_KEYWORDS.get(result, Token(result, result))
         return token
 
     def get_next_token(self):
         while self.curr_char is not None: # make sure not EOF
-            if self.curr_char.isspace():
+            if self.curr_char is not "\n" and self.curr_char.isspace():
                 self.skip_whitespace()
                 continue
+
+            if self.curr_char == "\n":
+                self.advance()
+                return Token(NEWL, "\n")
 
             if self.curr_char.isdigit():
                 return Token(INT, self.integer())
 
+            if self.curr_char.isalpha():
+                return self._id()
+
             if self.curr_char == "+":
                 self.advance()
-                return Token(PLUS, self.curr_char)
+                return Token(PLUS, "+")
 
             if self.curr_char == "-":
                 self.advance()
-                return Token(MINUS, self.curr_char)
+                return Token(MINUS, "-")
 
             if self.curr_char == "*":
                 self.advance()
-                return Token(MULT, self.curr_char)
+                return Token(MULT, "*")
 
             if self.curr_char == "/":
                 self.advance()
-                return Token(DIV, self.curr_char)
+                return Token(DIV, "/")
 
             if self.curr_char == '(':
                 self.advance()
@@ -123,6 +128,13 @@ class UnaryOp(AST):
         self.token = self.op = op
         self.expr = expr
 
+class Line(AST):
+    def __init__(self, line):
+        self.line = line
+
+class NoOp(AST):
+    pass
+
 class Parser():
     def __init__(self, lexer):
         self.lexer = lexer
@@ -138,6 +150,24 @@ class Parser():
             self.curr_token = self.lexer.get_next_token()
         else:
             self.error()
+
+    def empty(self):
+        """An empty production"""
+        return NoOp()
+
+    def program(self):
+        self.eat(HELLO)
+        while self.curr_token.type != GOODBYE and self.curr_token.type != None:
+            self.line()
+        self.eat(GOODBYE)
+
+
+    def line(self):
+        self.eat(PLEASE)
+        token = self.expr()
+        self.eat(THANKYOU)
+        return token
+
 
     def factor(self):
         token = self.curr_token
@@ -157,6 +187,8 @@ class Parser():
             self.eat(MINUS)
             node = UnaryOp(token, self.factor())
             return node
+        else:
+            return self.empty()
 
     def term(self):
         node = self.factor()
@@ -181,7 +213,7 @@ class Parser():
         return node
 
     def parse(self):
-        return self.expr()
+        return self.line()
 
 class NodeVisitor():
     def visit(self, node):
@@ -214,6 +246,9 @@ class Interpreter(NodeVisitor):
 
     def visit_Num(self, node):
         return node.value
+
+    def visit_NoneType(self, node):
+        pass
 
     def interpret(self):
         tree = self.parser.parse()
