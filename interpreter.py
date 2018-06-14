@@ -1,7 +1,7 @@
 (INT, PLUS, MINUS, MULT, DIV, LPAREN, RPAREN, NEWL,
-    ID, PLEASE, THANKYOU, HELLO, GOODBYE, EOF) = (
+    ID, ASSIGN, CALL, PLEASE, THANKYOU, HELLO, GOODBYE, EOF) = (
     'INT', 'PLUS', 'MINUS', 'MULT', 'DIV', 'LPAREN', 'RPAREN', 'NEWL',
-    'ID', 'please', 'thankyou', 'hello', 'goodbye', 'EOF')
+    'ID', 'ASSIGN', 'call', 'please', 'thankyou', 'hello', 'goodbye', 'EOF')
 
 
 class Token():
@@ -24,6 +24,7 @@ RESERVED_KEYWORDS = {
     'thankyou': Token('thankyou', 'thankyou'),
     'hello': Token('hello', 'hello'),
     'goodbye': Token('goodbye', 'goodbye'),
+    'call': Token('call', 'call'),
 }
 
 
@@ -67,7 +68,7 @@ class Lexer():
             result += self.curr_char
             self.advance()
 
-        token = RESERVED_KEYWORDS.get(result, Token(result, result))
+        token = RESERVED_KEYWORDS.get(result, Token(ID, result))
         return token
 
     def get_next_token(self):
@@ -81,6 +82,10 @@ class Lexer():
 
             if self.curr_char.isalpha():
                 return self._id()
+
+            if self.curr_char == ':':
+                self.advance()
+                return Token(ASSIGN, ':')
 
             if self.curr_char == "+":
                 self.advance()
@@ -134,6 +139,19 @@ class UnaryOp(AST): # unary operation node
         self.token = self.op = op
         self.expr = expr
 
+class Assign(AST): # variable
+    def __init__(self, left, op, right):
+        self.left = left
+        self.token = self.op = op
+        self.right = right
+
+class Var(AST):
+    """The Var node is constructed out of ID token."""
+    def __init__(self, token):
+        self.token = token
+        self.value = token.value
+
+
 class NoOp(AST):
     pass
 
@@ -152,6 +170,7 @@ class Parser():
         if token_type == self.curr_token.type:
             self.curr_token = self.lexer.get_next_token()
         else:
+            print(self.curr_token, token_type)
             self.error()
 
     def empty(self): # empty statement
@@ -160,16 +179,38 @@ class Parser():
     def program(self): # check beginning and end of program
         self.eat(HELLO)
         commands = []
-        while self.curr_token.type != GOODBYE and self.curr_token.type != None: # iterate through commands
+        while self.curr_token.value != GOODBYE and self.curr_token.type != None: # iterate through commands
             commands.append(self.command())
         self.eat(GOODBYE)
         return commands
 
     def command(self): # check beginning and end of each command
         self.eat(PLEASE)
-        token = self.expr()
+        if self.curr_token.type==CALL:
+            token = self.assignment()
+        else:
+            token = self.expr()
         self.eat(THANKYOU)
         return token
+
+    def assignment(self):
+        self.eat(CALL)
+        left = self.variable()
+        token = self.curr_token
+
+        self.eat(ASSIGN)
+        right = self.expr()
+        node = Assign(left, token, right)
+        return node
+
+    def variable(self):
+        """
+        variable : ID
+        """
+        node = Var(self.curr_token)
+        self.eat(ID)
+        return node
+
 
     def factor(self):
         token = self.curr_token
@@ -190,7 +231,8 @@ class Parser():
             node = UnaryOp(token, self.factor())
             return node
         else:
-            return self.empty()
+            node = self.variable()
+            return node
 
     def term(self):
         node = self.factor()
@@ -218,7 +260,7 @@ class Parser():
         return self.program()
 
 
-class NodeVisitor(): 
+class NodeVisitor():
     def visit(self, node):
         method_name = "visit_" + type(node).__name__
         visitor = getattr(self, method_name, self.generic_visit)
@@ -229,6 +271,8 @@ class NodeVisitor():
 
 
 class Interpreter(NodeVisitor):
+    GLOBAL_SCOPE = {}
+
     def __init__(self, parser):
         self.parser = parser
 
@@ -251,6 +295,19 @@ class Interpreter(NodeVisitor):
     def visit_Num(self, node):
         return node.value
 
+    def visit_Assign(self, node):
+        var_name = node.left.value
+        self.GLOBAL_SCOPE[var_name] = self.visit(node.right)
+
+    def visit_Var(self, node):
+        var_name = node.value
+        val = self.GLOBAL_SCOPE.get(var_name)
+        if val is None:
+            raise NameError(repr(var_name))
+        else:
+            return val
+
+
     def visit_NoneType(self, node):
         pass
 
@@ -263,18 +320,14 @@ class Interpreter(NodeVisitor):
 
 
 def main():
-    while True:
-        try:
-            text = input("calc>> ")
-        except EOFError:
-            break
-        if not text:
-            continue
-        lexer = Lexer(text)
-        parser = Parser(lexer)
-        interpreter = Interpreter(parser)
-        result = interpreter.interpret()
-        for r in result:
+    import sys
+    text = open(sys.argv[1], 'r').read()
+    lexer = Lexer(text)
+    parser = Parser(lexer)
+    interpreter = Interpreter(parser)
+    result = interpreter.interpret()
+    for r in result:
+        if r is not None:
             print(r)
 
 
