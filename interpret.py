@@ -18,6 +18,8 @@ class Lexer:
                     "please": Token('please', 'please'),
                     "thankyou": Token('thankyou', 'thankyou'),
                     "call": Token('call', 'call'),
+                    "is": Token('is', 'is'),
+                    "isnt": Token('isnt', 'isnt'),
         }
 
     def advance(self):
@@ -102,6 +104,11 @@ class UnaryOp: # unary operation node
         self.token = self.op = op
         self.expr = expr
 
+class BoolOp:
+    def __init__(self, left, op, right):
+        self.left = left
+        self.token = self.op = op
+        self.right = right
 
 class Assign: # variable
     def __init__(self, left, right):
@@ -148,7 +155,7 @@ class Parser:
         if self.curr_token.type=="call":
             token = self.assignment()
         if self.curr_token.type != "thankyou":
-            token = self.expr()
+            token = self.bool()
         self.consume("thankyou")
         return token
 
@@ -156,7 +163,7 @@ class Parser:
         self.consume("call")
         left = self.curr_token
         self.consume("VAR")
-        right = self.expr()
+        right = self.bool()
         node = Assign(left, right)
         return node
 
@@ -184,6 +191,18 @@ class Parser:
         else:
             node = Var(self.curr_token)
             return node
+
+    def bool(self):
+        node = self.expr()
+        while self.curr_token.type in ("is", "isnt"):
+            op = self.curr_token
+            if op.type == "is":
+                self.consume("is")
+            elif op.type == "isnt":
+                self.consume("isnt")
+                node = BoolOp(node, op, self.term())
+            node = BoolOp(node, op, self.term())
+        return node
 
     def term(self):
         node = self.factor()
@@ -241,6 +260,12 @@ class Interpreter:
             return +self.visit(node.expr)
         elif node.op.type == "MINUS":
             return -self.visit(node.expr)
+
+    def visit_BoolOp(self, node):
+        if node.op.type == "is":
+            return self.visit(node.left) is self.visit(node.right)
+        elif node.op.type == "isnt":
+            return self.visit(node.left) is not self.visit(node.right)
 
     def visit_Num(self, node):
         return node.val
