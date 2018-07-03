@@ -1,7 +1,8 @@
+# token class: represents individual segments of the input
 class Token:
     def __init__(self, type, val):
-        self.type = type
-        self.val = val
+        self.type = type # ie INT, VAR, PLUS
+        self.val = val # ie 5, a, +
 
     def __str__(self):
         return "Token type: " + self.type + ", value: " + self.val
@@ -12,7 +13,7 @@ class Lexer:
         self.text = text
         self.pos = 0
         self.curr_ch = text[0]
-        self.keywords = {
+        self.keywords = { # saved keywords with special meaning in the language
                     "hello":Token('hello', 'hello'),
                     "goodbye":Token('goodbye', 'goodbye'),
                     "please": Token('please', 'please'),
@@ -24,15 +25,14 @@ class Lexer:
 
     def advance(self):
         self.pos += 1
-        if self.pos >= len(self.text):
+        if self.pos >= len(self.text): # check for EOF
             self.curr_ch = None
         else:
             self.curr_ch = self.text[self.pos]
 
+    # raised when encountering an unrecognized character
     def error(self):
         raise Exception("impolite programming, fix your character", self.curr_ch)
-
-    # general get next token function
 
     def get_next_token(self):
         while self.curr_ch is not None:
@@ -86,13 +86,14 @@ class Lexer:
             return Token("VAR", word)
 
 
-# node classes
+# node classes for use in AST
 class Num:
     def __init__(self, token):
         self.token = token
         self.val = token.val
 
-class BinOp:
+
+class BinOp: # binary operation
     def __init__(self, left, op, right):
         self.left = left
         self.token = self.op = op
@@ -104,19 +105,21 @@ class UnaryOp: # unary operation node
         self.token = self.op = op
         self.expr = expr
 
+
 class BoolOp:
     def __init__(self, left, op, right):
         self.left = left
         self.token = self.op = op
         self.right = right
 
-class Assign: # variable
+
+class Assign: # to assign a variable
     def __init__(self, left, right):
         self.left = left
         self.right = right
 
 
-class Var:
+class Var: # referencing a variable
     def __init__(self, token):
         self.token = token
         self.val = token.val
@@ -134,6 +137,7 @@ class Parser:
     def error(self):
         raise Exception('impolite programming - fix your syntax')
 
+    # check whether next token is the expected type, then advance
     def consume(self, expected):
         if self.curr_token.type == expected:
             self.curr_token = self.lexer.get_next_token()
@@ -141,7 +145,9 @@ class Parser:
             print("Expected", expected, "got", self.curr_token.type)
             self.error()
 
-    def program(self): # check beginning and end of program
+    # check beginning and end of program for hello and goodbye
+    # then run through command lines in program
+    def program(self):
         self.consume("hello")
         commands = []
         while self.curr_token.val != "goodbye" and self.curr_token.type != None: # iterate through commands
@@ -149,17 +155,18 @@ class Parser:
         self.consume("goodbye")
         return commands
 
-    def command(self): # check beginning and end of each command
+    # check beginning and end of each command for hello and goodbye
+    def command(self):
         self.consume("please")
-        token = NoOp()
-        if self.curr_token.type=="call":
+        token = NoOp() # default is empty operation
+        if self.curr_token.type=="call": # check is command is assigning a variable
             token = self.assignment()
         if self.curr_token.type != "thankyou":
-            token = self.bool()
+            token = self.bool() # can handle any other type of command
         self.consume("thankyou")
         return token
 
-    def assignment(self):
+    def assignment(self): # assigning a variable
         self.consume("call")
         left = self.curr_token
         self.consume("VAR")
@@ -177,7 +184,7 @@ class Parser:
             return Var(token)
         elif token.type == "LPAREN":
             self.consume("LPAREN")
-            node = self.expr()
+            node = self.bool()
             self.consume("RPAREN")
             return node
         elif token.type == "PLUS":
@@ -191,18 +198,6 @@ class Parser:
         else:
             node = Var(self.curr_token)
             return node
-
-    def bool(self):
-        node = self.expr()
-        while self.curr_token.type in ("is", "isnt"):
-            op = self.curr_token
-            if op.type == "is":
-                self.consume("is")
-            elif op.type == "isnt":
-                self.consume("isnt")
-                node = BoolOp(node, op, self.term())
-            node = BoolOp(node, op, self.term())
-        return node
 
     def term(self):
         node = self.factor()
@@ -226,22 +221,35 @@ class Parser:
             node = BinOp(node, op, self.term())
         return node
 
+    def bool(self):
+        node = self.expr()
+        while self.curr_token.type in ("is", "isnt"):
+            op = self.curr_token
+            if op.type == "is":
+                self.consume("is")
+            elif op.type == "isnt":
+                self.consume("isnt")
+                node = BoolOp(node, op, self.term())
+            node = BoolOp(node, op, self.term())
+        return node
+
     def parse(self):
         return self.program()
 
 
 class Interpreter:
 
-
     def __init__(self, parser):
         self.parser = parser
-        self.vars = {}
+        self.vars = {} # keep track of values assigned to vars
 
+    # call visit function for specific node type
     def visit(self, node):
         method_name = "visit_" + type(node).__name__
         visitor = getattr(self, method_name, self.generic_visit)
         return visitor(node)
 
+    # if visit function for node type can't be found
     def generic_visit(self, node):
         raise Exception('No visit_{} method'.format(type(node).__name__))
 
