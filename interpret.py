@@ -21,6 +21,8 @@ class Lexer:
                     "call": Token('call', 'call'),
                     "is": Token('is', 'is'),
                     "isnt": Token('isnt', 'isnt'),
+                    "perchance": Token('perchance', 'perchance'),
+                    "naturally": Token('naturally', 'naturally'),
         }
 
     def advance(self):
@@ -124,6 +126,10 @@ class Var: # referencing a variable
         self.token = token
         self.val = token.val
 
+class Opt:
+    def __init__(self, perchance, naturally):
+        self.perchance = perchance
+        self.naturally = naturally
 
 class NoOp:
     pass
@@ -158,13 +164,31 @@ class Parser:
     # check beginning and end of each command for hello and goodbye
     def command(self):
         self.consume("please")
-        token = NoOp() # default is empty operation
+        node = NoOp() # default is empty operation
         if self.curr_token.type=="call": # check is command is assigning a variable
-            token = self.assignment()
+            node = self.assignment()
+        elif self.curr_token.type=="perchance": # check for if statement
+            node = self.opt()
         if self.curr_token.type != "thankyou":
-            token = self.bool() # can handle any other type of command
+            node = self.bool() # can handle any other type of command
         self.consume("thankyou")
-        return token
+        return node
+
+    def opt(self):
+        self.consume("perchance")
+        perchance = self.bool()
+        self.consume("naturally")
+        naturally = []
+        while self.curr_token.type=="please":
+            self.consume("please")
+            if self.curr_token.type=="call": # check is command is assigning a variable
+                naturally.append(self.assignment())
+            elif self.curr_token.type == "perchance":  # check for if statement
+                naturally.append(self.opt())
+            else:
+                naturally.append(self.bool())
+            self.consume("thankyou")
+        return Opt(perchance, naturally)
 
     def assignment(self): # assigning a variable
         self.consume("call")
@@ -283,6 +307,11 @@ class Interpreter:
 
     def visit_Var(self, node):
         return self.vars[node.val]
+
+    def visit_Opt(self, node):
+        if self.visit(node.perchance):
+            for item in node.naturally:
+                self.visit(item)
 
     def visit_NoOp(self, node):
         pass
