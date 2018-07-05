@@ -23,6 +23,7 @@ class Lexer:
                     "isnt": Token('isnt', 'isnt'),
                     "perchance": Token('perchance', 'perchance'),
                     "naturally": Token('naturally', 'naturally'),
+                    "whilst": Token('whilst', 'whilst'),
         }
 
     def advance(self):
@@ -131,6 +132,11 @@ class Opt:
         self.perchance = perchance
         self.naturally = naturally
 
+class Whilst:
+    def __init__(self, whilst, naturally):
+        self.whilst = whilst
+        self.naturally = naturally
+
 class NoOp:
     pass
 
@@ -169,10 +175,30 @@ class Parser:
             node = self.assignment()
         elif self.curr_token.type=="perchance": # check for if statement
             node = self.opt()
+        elif self.curr_token.type == "whilst":  # check for while statement
+            node = self.whilst()
         if self.curr_token.type != "thankyou":
             node = self.bool() # can handle any other type of command
         self.consume("thankyou")
         return node
+
+    def whilst(self):
+        self.consume("whilst")
+        whilst = self.bool()
+        self.consume("naturally")
+        naturally = []
+        while self.curr_token.type == "please":
+            self.consume("please")
+            if self.curr_token.type == "call":  # check is command is assigning a variable
+                naturally.append(self.assignment())
+            elif self.curr_token.type == "perchance":  # check for if statement
+                naturally.append(self.opt())
+            elif self.curr_token.type == "whilst":  # check for while statement
+                naturally.append(self.whilst())
+            else:
+                naturally.append(self.bool())
+            self.consume("thankyou")
+        return Whilst(whilst, naturally)
 
     def opt(self):
         self.consume("perchance")
@@ -185,6 +211,8 @@ class Parser:
                 naturally.append(self.assignment())
             elif self.curr_token.type == "perchance":  # check for if statement
                 naturally.append(self.opt())
+            elif self.curr_token.type == "whilst":  # check for while statement
+                naturally.append(self.whilst())
             else:
                 naturally.append(self.bool())
             self.consume("thankyou")
@@ -253,7 +281,6 @@ class Parser:
                 self.consume("is")
             elif op.type == "isnt":
                 self.consume("isnt")
-                node = BoolOp(node, op, self.term())
             node = BoolOp(node, op, self.term())
         return node
 
@@ -310,6 +337,11 @@ class Interpreter:
 
     def visit_Opt(self, node):
         if self.visit(node.perchance):
+            for item in node.naturally:
+                self.visit(item)
+
+    def visit_Whilst(self, node):
+        while self.visit(node.whilst):
             for item in node.naturally:
                 self.visit(item)
 
