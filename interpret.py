@@ -39,7 +39,7 @@ class Lexer:
 
     # raised when encountering an unrecognized character
     def error(self):
-        raise Exception("impolite programming, fix your character", self.curr_ch)
+        raise Exception("Impolite programming, fix your character! Unrecognized: " + self.curr_ch)
 
     def get_next_token(self):
         while self.curr_ch is not None:
@@ -171,16 +171,15 @@ class Parser:
         self.lexer = lexer
         self.curr_token = self.lexer.get_next_token()
 
-    def error(self):
-        raise Exception('impolite programming - fix your syntax')
+    def error(self, expected):
+        raise Exception('Impolite programming - fix your syntax! Expected ' + expected + " but got " + self.curr_token.type)
 
     # check whether next token is the expected type, then advance
     def consume(self, expected):
         if self.curr_token.type == expected:
             self.curr_token = self.lexer.get_next_token()
         else:
-            print("Expected", expected, "got", self.curr_token.type)
-            self.error()
+            self.error(expected)
 
     # check beginning and end of program for hello and goodbye
     # then run through command lines in program
@@ -338,6 +337,7 @@ class Interpreter:
     def __init__(self, parser):
         self.parser = parser
         self.vars = {} # keep track of values assigned to vars
+        self.to_print = [] # keep track of what to print
 
     # call visit function for specific node type
     def visit(self, node):
@@ -394,7 +394,7 @@ class Interpreter:
         self.vars[node.var.val].append(self.visit(node.item.val))
 
     def visit_Say(self, node):
-        print(self.visit(node.statement))
+        self.to_print.append(self.visit(node.statement))
 
     def visit_NoOp(self, node):
         pass
@@ -406,7 +406,7 @@ class Interpreter:
             result = self.visit(tree)
             if result is not None:
                 parsed.append(result)
-        return parsed
+        return self.to_print
 
 
 def main():
@@ -416,9 +416,9 @@ def main():
     parser = Parser(lexer)
     interpreter = Interpreter(parser)
     result = interpreter.interpret()
-    #for r in result:
-        #if r is not None:
-            #print(r)
+    for r in result:
+        if r is not None:
+            print(r)
 
 
 if __name__ == '__main__':

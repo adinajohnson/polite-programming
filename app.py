@@ -10,9 +10,7 @@ def mn():
 
 @app.route('/result', methods = ['POST', 'GET'])
 def result():
-#   if request.method == 'POST':
    try:
-      #result = request.form['text']
       result = request.args.get('prog', 0, type=str)      
       lexer = interpret.Lexer(result)
       parser = interpret.Parser(lexer)
@@ -20,8 +18,7 @@ def result():
       done = interpreter.interpret()
       return jsonify(result = done)
    except Exception as e:
-      return str(e)
-      #return render_template("result.html", result = done)
+      return jsonify(result = str(e))
 
 if __name__ == '__main__':
    app.run(debug = True)
