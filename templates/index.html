@@ -1,11 +1,12 @@
 <html>
   <head>
+    <title>Polite Programming</title>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script type=text/javascript>
       $(function() {
       $('a#process_input').bind('click', function() {
       $.getJSON('/result', {
-      prog: $('input[name="prog"]').val(),
+      prog: $('textarea[name="prog"]').val(),
       }, function(data) {
       $("#result").text(data.result);
       });
@@ -13,21 +14,28 @@
       });
       });
     </script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
+    <link href="https://fonts.googleapis.com/css?family=Share+Tech+Mono" rel="stylesheet">
   </head>
   <body>
-    <div class='container'>
+    <div id='container'>
+    <div id="input">
     <form action = "http://localhost:5000/result" method = "post">
          <p>Enter Program:</p>
-         <p><input type = "text" name = "prog" /></p>
-         <p><a href=# id=process_input><button>Submit</button></a></p>
-	   <!--<input type = "submit" value = "submit" /></p> --->
+         <p><textarea name = "prog" spellcheck="false"></textarea></p>
+         <p><a href=# id="process_input"><button>Submit</button></a></p>
       </form>
+    </div>
+    <div id="computer">
+      this is a computer
+    </div>
 
-    <p id=result>
+    <div id="result">
+      Output
     {% for val in result %}
     {{ val }}
     {% endfor %}
-    </p>
+    </div>
     </div>
   </body>
 </html>
