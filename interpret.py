@@ -24,6 +24,10 @@ class Lexer:
                     "perchance": Token('perchance', 'perchance'),
                     "naturally": Token('naturally', 'naturally'),
                     "whilst": Token('whilst', 'whilst'),
+                    "listing": Token('listing', 'listing'),
+                    "affix": Token('affix', 'affix'),
+                    "quote": Token('quote', 'quote'),
+                    "say": Token('say', 'say'),
         }
 
     def advance(self):
@@ -78,11 +82,24 @@ class Lexer:
             self.advance()
         return int(num)
 
+    def skip_comment(self):
+        word = ""
+        while word != "thankyou":
+            word = ""
+            while self.curr_ch is not None and not self.curr_ch.isalpha():
+                self.advance()
+            while self.curr_ch is not None and self.curr_ch.isalpha():
+                word += self.curr_ch
+                self.advance()
+        return word
+
     def alpha(self):
         word = ""
         while self.curr_ch is not None and self.curr_ch.isalpha():
             word += self.curr_ch
             self.advance()
+        if word=="disregard":
+            word = self.skip_comment()
         if word in self.keywords:
             return self.keywords[word]
         else:
@@ -121,21 +138,29 @@ class Assign: # to assign a variable
         self.left = left
         self.right = right
 
+class Affix: # to add to a list
+    def __init__(self, var, item):
+        self.var = var
+        self.item = item
 
 class Var: # referencing a variable
     def __init__(self, token):
         self.token = token
         self.val = token.val
 
-class Opt:
+class Opt: # if statement
     def __init__(self, perchance, naturally):
         self.perchance = perchance
         self.naturally = naturally
 
-class Whilst:
+class Whilst: # while loop
     def __init__(self, whilst, naturally):
         self.whilst = whilst
         self.naturally = naturally
+
+class Say: # print statement
+    def __init__(self, statement):
+        self.statement = statement
 
 class NoOp:
     pass
@@ -173,10 +198,16 @@ class Parser:
         node = NoOp() # default is empty operation
         if self.curr_token.type=="call": # check is command is assigning a variable
             node = self.assignment()
+        elif self.curr_token.type == "affix":  # check for affixing
+            node = self.affix()
         elif self.curr_token.type=="perchance": # check for if statement
             node = self.opt()
         elif self.curr_token.type == "whilst":  # check for while statement
             node = self.whilst()
+        elif self.curr_token.type == "say":  # check for print statement
+            self.consume("say")
+            statement = self.bool()
+            node = Say(statement)
         if self.curr_token.type != "thankyou":
             node = self.bool() # can handle any other type of command
         self.consume("thankyou")
@@ -191,6 +222,8 @@ class Parser:
             self.consume("please")
             if self.curr_token.type == "call":  # check is command is assigning a variable
                 naturally.append(self.assignment())
+            elif self.curr_token.type == "affix":  # check for affixing
+                naturally.append(self.affix())
             elif self.curr_token.type == "perchance":  # check for if statement
                 naturally.append(self.opt())
             elif self.curr_token.type == "whilst":  # check for while statement
@@ -209,6 +242,8 @@ class Parser:
             self.consume("please")
             if self.curr_token.type=="call": # check is command is assigning a variable
                 naturally.append(self.assignment())
+            elif self.curr_token.type == "affix":  # check for affixing
+                naturally.append(self.affix())
             elif self.curr_token.type == "perchance":  # check for if statement
                 naturally.append(self.opt())
             elif self.curr_token.type == "whilst":  # check for while statement
@@ -222,8 +257,18 @@ class Parser:
         self.consume("call")
         left = self.curr_token
         self.consume("VAR")
-        right = self.bool()
+        if self.curr_token.type == "listing":
+            right = []
+        else:
+            right = self.bool()
         node = Assign(left, right)
+        return node
+
+    def affix(self):
+        self.consume("affix")
+        var = self.curr_token
+        self.consume("VAR")
+        node = Affix(var, self.bool())
         return node
 
     def factor(self):
@@ -345,6 +390,12 @@ class Interpreter:
             for item in node.naturally:
                 self.visit(item)
 
+    def visit_Affix(self, node):
+        self.vars[node.var.val].append(self.visit(node.item.val))
+
+    def visit_Say(self, node):
+        print(self.visit(node.statement))
+
     def visit_NoOp(self, node):
         pass
 
@@ -365,9 +416,9 @@ def main():
     parser = Parser(lexer)
     interpreter = Interpreter(parser)
     result = interpreter.interpret()
-    for r in result:
-        if r is not None:
-            print(r)
+    #for r in result:
+        #if r is not None:
+            #print(r)
 
 
 if __name__ == '__main__':
