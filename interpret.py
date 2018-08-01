@@ -172,7 +172,7 @@ class Parser:
         self.curr_token = self.lexer.get_next_token()
 
     def error(self, expected):
-        raise Exception('Impolite programming - fix your syntax! Expected ' + expected + " but got " + self.curr_token.type)
+        raise Exception('Impolite programming - fix your syntax! Expected ' + expected + " but received " + self.curr_token.type)
 
     # check whether next token is the expected type, then advance
     def consume(self, expected):
