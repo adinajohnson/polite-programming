@@ -1,0 +1,3 @@
+flask
+zappa
+git+http://github.com/dantezhu/flask_util_js.git

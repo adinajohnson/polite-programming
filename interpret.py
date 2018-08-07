@@ -24,9 +24,6 @@ class Lexer:
                     "perchance": Token('perchance', 'perchance'),
                     "naturally": Token('naturally', 'naturally'),
                     "whilst": Token('whilst', 'whilst'),
-                    "listing": Token('listing', 'listing'),
-                    "affix": Token('affix', 'affix'),
-                    "quote": Token('quote', 'quote'),
                     "say": Token('say', 'say'),
         }
 
@@ -50,6 +47,9 @@ class Lexer:
                 return Token("INT", self.integer())
             if self.curr_ch.isalpha():
                 return self.alpha()
+            if self.curr_ch == '"':
+                self.advance()
+                return self.quote()
             if self.curr_ch == '+':
                 self.advance()
                 return Token("PLUS", self.curr_ch)
@@ -68,6 +68,7 @@ class Lexer:
             if self.curr_ch == ')':
                 self.advance()
                 return Token("RPAREN", self.curr_ch)
+
             self.error()
         return Token("EOF", None)
 
@@ -92,6 +93,15 @@ class Lexer:
                 word += self.curr_ch
                 self.advance()
         return word
+
+    def quote(self):
+        quote = ""
+        while self.curr_ch is not None and self.curr_ch is not '"':
+            quote += self.curr_ch
+            self.advance()
+        if self.curr_ch is '"':
+            self.advance()
+        return Token("QUOTE", quote)
 
     def alpha(self):
         word = ""
@@ -138,29 +148,34 @@ class Assign: # to assign a variable
         self.left = left
         self.right = right
 
-class Affix: # to add to a list
-    def __init__(self, var, item):
-        self.var = var
-        self.item = item
 
 class Var: # referencing a variable
     def __init__(self, token):
         self.token = token
         self.val = token.val
 
+
 class Opt: # if statement
     def __init__(self, perchance, naturally):
         self.perchance = perchance
         self.naturally = naturally
+
 
 class Whilst: # while loop
     def __init__(self, whilst, naturally):
         self.whilst = whilst
         self.naturally = naturally
 
+
 class Say: # print statement
     def __init__(self, statement):
         self.statement = statement
+
+
+class Quote:
+    def __init__(self, statement):
+        self.statement = statement
+
 
 class NoOp:
     pass
@@ -197,8 +212,6 @@ class Parser:
         node = NoOp() # default is empty operation
         if self.curr_token.type=="call": # check is command is assigning a variable
             node = self.assignment()
-        elif self.curr_token.type == "affix":  # check for affixing
-            node = self.affix()
         elif self.curr_token.type=="perchance": # check for if statement
             node = self.opt()
         elif self.curr_token.type == "whilst":  # check for while statement
@@ -221,12 +234,14 @@ class Parser:
             self.consume("please")
             if self.curr_token.type == "call":  # check is command is assigning a variable
                 naturally.append(self.assignment())
-            elif self.curr_token.type == "affix":  # check for affixing
-                naturally.append(self.affix())
             elif self.curr_token.type == "perchance":  # check for if statement
                 naturally.append(self.opt())
             elif self.curr_token.type == "whilst":  # check for while statement
                 naturally.append(self.whilst())
+            elif self.curr_token.type == "say":  # check for print statement
+                self.consume("say")
+                statement = self.bool()
+                naturally.append(Say(statement))
             else:
                 naturally.append(self.bool())
             self.consume("thankyou")
@@ -241,12 +256,14 @@ class Parser:
             self.consume("please")
             if self.curr_token.type=="call": # check is command is assigning a variable
                 naturally.append(self.assignment())
-            elif self.curr_token.type == "affix":  # check for affixing
-                naturally.append(self.affix())
             elif self.curr_token.type == "perchance":  # check for if statement
                 naturally.append(self.opt())
             elif self.curr_token.type == "whilst":  # check for while statement
                 naturally.append(self.whilst())
+            elif self.curr_token.type == "say":  # check for print statement
+                self.consume("say")
+                statement = self.bool()
+                naturally.append(Say(statement))
             else:
                 naturally.append(self.bool())
             self.consume("thankyou")
@@ -256,18 +273,8 @@ class Parser:
         self.consume("call")
         left = self.curr_token
         self.consume("VAR")
-        if self.curr_token.type == "listing":
-            right = []
-        else:
-            right = self.bool()
+        right = self.bool()
         node = Assign(left, right)
-        return node
-
-    def affix(self):
-        self.consume("affix")
-        var = self.curr_token
-        self.consume("VAR")
-        node = Affix(var, self.bool())
         return node
 
     def factor(self):
@@ -291,9 +298,14 @@ class Parser:
             self.consume("MINUS")
             node = UnaryOp(token, self.factor())
             return node
-        else:
+        elif token.type == "QUOTE":
+            self.consume("QUOTE")
+            return Quote(token)
+        elif self.curr_token.type not in self.lexer.keywords:
             node = Var(self.curr_token)
             return node
+        else:
+            self.error("non-keyword")
 
     def term(self):
         node = self.factor()
@@ -390,11 +402,11 @@ class Interpreter:
             for item in node.naturally:
                 self.visit(item)
 
-    def visit_Affix(self, node):
-        self.vars[node.var.val].append(self.visit(node.item.val))
-
     def visit_Say(self, node):
         self.to_print.append(self.visit(node.statement))
+
+    def visit_Quote(self, node):
+        return node.statement.val
 
     def visit_NoOp(self, node):
         pass
