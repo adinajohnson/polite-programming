@@ -1,14 +1,8 @@
 from flask import Flask, request, render_template, jsonify
-from flask_util_js import FlaskUtilJs
 import interpret
 import sys
 
 app = Flask(__name__)
-fujs = FlaskUtilJs(app)
-
-@app.context_processor
-def inject_fujs():
-    return dict(fujs=fujs)
 
 @app.route('/')
 def mn():
