@@ -5,7 +5,7 @@
     <script type=text/javascript>
       $(function() {
       $('a#process_input').bind('click', function() {
-      $.getJSON('/result', {
+      $.getJSON('result', {
       prog: $('textarea[name="prog"]').val(),
       }, function(data) {
       $("#result").text(data.result);
@@ -30,8 +30,12 @@
       this is a computer
     </div>
 
-    <div id="result">
-      Output
+    <div id="output">
+      <img src="static/bubble.png">
+      </div>
+      <div id="result">
+      
+
     {% for val in result %}
     {{ val }}
     {% endfor %}
