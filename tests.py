@@ -12,9 +12,6 @@ class Tests(unittest.TestCase):
                     ("hello please say 1 thankyou goodbye", [1]),
                     ("hello please say \"hi\" thankyou goodbye", ["hi"]),
 
-                    # comments
-
-
                     # arithmetic
                     ("hello please say 1+2 thankyou goodbye", [3]),
                     ("hello please say 1*2 thankyou goodbye", [2]),
@@ -73,12 +70,6 @@ class Tests(unittest.TestCase):
         "hello please 1+(1+1 thankyou goodbye",
         "hello please 1+(1+1)) thankyou goodbye",
 
-        # booleans
-
-
-        # if statements
-
-        # while loops
     ]
     def test_parser_errors_basics(self):
         for command in self.parser_error_snippets:
